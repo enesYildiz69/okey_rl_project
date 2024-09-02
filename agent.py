@@ -13,13 +13,18 @@ class DQNAgent:
         self.epsilon_decay = config.epsilon_decay
         self.epsilon_min = config.epsilon_min
 
-    def act(self, state):
+    def act(self, state, valid_actions):
         if random.random() <= self.epsilon:
-            return random.randrange(self.action_size)
+            return random.choice(valid_actions)
         state = torch.tensor(state, dtype=torch.float).unsqueeze(0)
         with torch.no_grad():
             q_values = self.model(state)
-        return q_values.argmax().item()
+        q_values = q_values.squeeze().cpu().numpy()
+
+        # Only consider valid actions
+        valid_q_values = [(i, q_values[i]) for i in valid_actions]
+        action = max(valid_q_values, key=lambda x: x[1])[0]
+        return action
 
     def replay(self, minibatch, optimizer, criterion):
         for state, action, reward, next_state, done in minibatch:

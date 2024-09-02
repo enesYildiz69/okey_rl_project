@@ -16,7 +16,8 @@ def train_agent(env, agent, config):
         total_reward = 0
 
         for t in range(config.max_steps_per_episode):
-            action = agent.act(state)
+            valid_actions = env.get_valid_actions()
+            action = agent.act(state, valid_actions)
             next_state, reward, done = env.step(action)
             next_state = preprocess_state(next_state)
             replay_buffer.append((state, action, reward, next_state, done))
