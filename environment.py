@@ -99,7 +99,7 @@ class OkeyEnvironment:
             done = self.check_if_done()
         else:
             done = True  # Invalid action should never happen now
-        print(f"Action taken: {action},Hand before action {hand_before_action}, Hand after action: {self.hand}, Reward: {reward}")
+        # print(f"Action taken: {action},Hand before action {hand_before_action}, Hand after action: {self.hand}, Reward: {reward}")
         new_state = self.get_state()
         return new_state, reward, done
 

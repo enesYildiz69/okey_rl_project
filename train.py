@@ -10,7 +10,8 @@ def train_agent(env, agent, config):
     replay_buffer = deque(maxlen=config.buffer_size)
     optimizer = optim.Adam(agent.model.parameters(), lr=config.learning_rate)
     criterion = torch.nn.MSELoss()
-
+    best_total_reward = 0
+    
     for episode in range(config.num_episodes):
         state = preprocess_state(env.reset())
         total_reward = 0
