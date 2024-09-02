@@ -75,7 +75,7 @@ class OkeyEnvironment:
         if action in self.get_valid_actions():
             hand_before_action = self.hand.copy()
             if action >= 0 and action <= 4:
-                discarded_card = self.hand.pop(action)
+                discarded_card = self.hand[action]
                 self.hand[action] = self.dummy_card
                 self.discarded.append(discarded_card)
                 if len(self.deck) > 0:
