@@ -16,7 +16,7 @@ This project implements a Reinforcement Learning (RL) agent using Deep Q-Network
 ## How to Run
 1. Clone the repository:
     ```bash
-    git clone https://github.com/yourusername/okey_rl_project.git
+    git clone https://github.com/enesYildiz69/okey_rl_project.git
     cd okey_rl_project
     ```
 
