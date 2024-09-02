@@ -5,9 +5,10 @@ from collections import Counter
 class OkeyEnvironment:
     def __init__(self):
         self.deck = self.initialize_deck()
-        self.state_size = 48  # Example state size: 3 colors * 8 numbers * 2 (hand + deck)
+        self.state_size = 72  # 3 colors * 8 numbers * 3 states (deck, hand, discarded)
         self.action_size = 19  # Example action size: 19 possible actions
         self.valid_combinations = {}
+        self.discarded = []
 
     def initialize_deck(self):
         deck = []
@@ -20,18 +21,28 @@ class OkeyEnvironment:
     def reset(self):
         self.deck = self.initialize_deck()
         self.hand = [self.deck.pop() for _ in range(5)]
+        self.discarded = []
         return self.get_state()
 
     def get_state(self):
         # Encode the current hand and remaining deck into a state tensor
-        state = np.zeros((3, 8, 2))
+        state = np.zeros((3, 8, 3))
+        # Mark cards in the hand
         for card in self.hand:
             color, number = card
-            state[color, number-1, 0] = 1  # Mark card as in hand
+            state[color, number-1, 1] = 1  # Mark card as in hand
+
+        # Mark cards in the deck
         for card in self.deck:
             color, number = card
-            state[color, number-1, 1] = 1  # Mark card as in deck
-        return state.flatten()
+            state[color, number-1, 0] = 1  # Mark card as in deck
+
+        # Mark used/discarded cards
+        for card in self.discarded:
+            color, number = card
+            state[color, number-1, 2] = 1  # Mark card as discarded
+
+        return state.flatten()  # Flatten for use in the neural network
 
     def get_valid_actions(self):
         valid_actions = []
@@ -62,6 +73,7 @@ class OkeyEnvironment:
         if action in self.get_valid_actions():
             if action >= 0 and action <= 4:
                 discarded_card = self.hand.pop(action)
+                self.discarded.append(discarded_card)
                 if len(self.deck) > 0:
                     new_card = self.deck.pop()
                     self.hand.append(new_card)
@@ -82,7 +94,7 @@ class OkeyEnvironment:
             done = self.check_if_done()
         else:
             done = True  # Invalid action should never happen now
-
+        print(f"Action taken: {action}, Hand after action: {self.hand}, Reward: {reward}")
         new_state = self.get_state()
         return new_state, reward, done
 
@@ -147,6 +159,7 @@ class OkeyEnvironment:
             for card in self.hand:
                 if card[1] == num:
                     self.hand.remove(card)
+                    self.discarded.append(card)
                     break
     
     def check_if_done(self):
