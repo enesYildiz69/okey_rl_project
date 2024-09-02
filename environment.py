@@ -9,6 +9,7 @@ class OkeyEnvironment:
         self.action_size = 19  # Example action size: 19 possible actions
         self.valid_combinations = {}
         self.discarded = []
+        self.dummy_card = (-1, -1)  # Represent an empty slot
 
     def initialize_deck(self):
         deck = []
@@ -29,8 +30,9 @@ class OkeyEnvironment:
         state = np.zeros((3, 8, 3))
         # Mark cards in the hand
         for card in self.hand:
-            color, number = card
-            state[color, number-1, 1] = 1  # Mark card as in hand
+            if card != self.dummy_card:
+                color, number = card
+                state[color, number-1, 1] = 1  # Mark card as in hand
 
         # Mark cards in the deck
         for card in self.deck:
@@ -50,9 +52,9 @@ class OkeyEnvironment:
 
         # Check if deck has cards; if not, discard actions shouldn't be allowed
         if len(self.deck) > 0:
-            # Check for possible discards
             for i in range(len(self.hand)):
-                valid_actions.append(i)
+                if self.hand[i] != self.dummy_card:
+                    valid_actions.append(i)
 
         # Check for possible combinations without modifying the hand
         for action, combination in enumerate([
@@ -71,12 +73,14 @@ class OkeyEnvironment:
     def step(self, action):
         reward = 0
         if action in self.get_valid_actions():
+            hand_before_action = self.hand.copy()
             if action >= 0 and action <= 4:
                 discarded_card = self.hand.pop(action)
+                self.hand[action] = self.dummy_card
                 self.discarded.append(discarded_card)
                 if len(self.deck) > 0:
                     new_card = self.deck.pop()
-                    self.hand.append(new_card)
+                    self.hand[action] = new_card
                 reward = 0
             elif action >= 5 and action <= 18:
                 # Use the stored valid combination without rechecking
@@ -86,15 +90,16 @@ class OkeyEnvironment:
                 
                 # Replace the removed cards if the deck still has enough cards
                 num_cards_to_draw = min(3, len(self.deck))
-                for _ in range(num_cards_to_draw):
-                    if len(self.deck) > 0:
+                for i in range(len(self.hand)):
+                    if self.hand[i] == self.dummy_card and num_cards_to_draw > 0:
                         new_card = self.deck.pop()
-                        self.hand.append(new_card)
+                        self.hand[i] = new_card
+                        num_cards_to_draw -= 1
                         
             done = self.check_if_done()
         else:
             done = True  # Invalid action should never happen now
-        print(f"Action taken: {action}, Hand after action: {self.hand}, Reward: {reward}")
+        print(f"Action taken: {action},Hand before action {hand_before_action}, Hand after action: {self.hand}, Reward: {reward}")
         new_state = self.get_state()
         return new_state, reward, done
 
@@ -124,7 +129,7 @@ class OkeyEnvironment:
             return 0
 
     def try_combination(self, n1, n2, n3, remove=False):
-        hand_numbers = [card[1] for card in self.hand]
+        hand_numbers = [card[1] for card in self.hand if card != self.dummy_card]
 
         # Count the occurrences of each number in the hand
         hand_count = Counter(hand_numbers)
@@ -139,7 +144,7 @@ class OkeyEnvironment:
             indices = []
             for num in required_numbers:
                 for i, card in enumerate(self.hand):
-                    if card[1] == num and i not in indices:
+                    if card[1] == num and i not in indices and card != self.dummy_card:
                         indices.append(i)
                         break
 
@@ -156,9 +161,9 @@ class OkeyEnvironment:
         to_remove = [n1, n2, n3]
 
         for num in to_remove:
-            for card in self.hand:
+            for i, card in enumerate(self.hand):
                 if card[1] == num:
-                    self.hand.remove(card)
+                    self.hand[i] = self.dummy_card
                     self.discarded.append(card)
                     break
     
@@ -166,7 +171,7 @@ class OkeyEnvironment:
         if len(self.deck) == 0:
             if not self.has_valid_combination():
                 return True
-        if len(self.hand) == 0:
+        if len(self.hand) == 0 or all(card == self.dummy_card for card in self.hand):
             return True
         if not self.has_valid_combination() and len(self.deck) > 0:
             return False
@@ -174,12 +179,13 @@ class OkeyEnvironment:
         return False
 
     def has_valid_combination(self):
-        number_counts = Counter([card[1] for card in self.hand])
+        hand_numbers = [card[1] for card in self.hand if card != self.dummy_card]
+        number_counts = Counter(hand_numbers)
         for count in number_counts.values():
             if count >= 3:
                 return True
 
-        sorted_hand = sorted(self.hand, key=lambda x: (x[0], x[1]))
+        sorted_hand = sorted([card for card in self.hand if card != self.dummy_card], key=lambda x: (x[0], x[1]))
         for i in range(len(sorted_hand) - 2):
             if (
                 sorted_hand[i][0] == sorted_hand[i + 1][0] == sorted_hand[i + 2][0] and
