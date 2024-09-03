@@ -12,6 +12,7 @@ This project implements a Reinforcement Learning (RL) agent using Deep Q-Network
 - `replay_buffer.py`: Implements the replay buffer for experience replay.
 - `utils.py`: Utility functions for preprocessing and other tasks.
 - `config.py`: Configuration file with hyperparameters and settings.
+- `play.py`: File to play with the trained model.
 
 ## How to Run
 1. Clone the repository:
