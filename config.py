@@ -1,6 +1,6 @@
 class Config:
     def __init__(self):
-        self.num_episodes = 10000  # Set to 1 million or more as needed
+        self.num_episodes = 15000  # Set to 1 million or more as needed
         self.max_steps_per_episode = 25  # Maximum steps per game
         self.buffer_size = 50000  # Replay buffer size
         self.batch_size = 128  # Batch size for replay
