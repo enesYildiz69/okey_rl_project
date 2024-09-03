@@ -11,8 +11,12 @@ def train_agent(env, agent, config):
     optimizer = optim.Adam(agent.model.parameters(), lr=config.learning_rate)
     criterion = torch.nn.MSELoss()
     best_total_reward = 0
+    latest_100_scores = []
+    average_score_of_every_100_episodes = []
+    epsilon_every_100_episodes = []
+    learning_rate_every_100_episodes = []
     # Introduce a learning rate scheduler for decaying learning rate
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.99)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.99)
 
     for episode in range(config.num_episodes):
         state = preprocess_state(env.reset())
@@ -40,8 +44,13 @@ def train_agent(env, agent, config):
         if episode % config.target_update == 0:
             agent.update_target_network()
 
+        latest_100_scores.append(total_reward)
         # Dynamic adjustment of the target network update frequency
         if episode % 100 == 0 and episode > 0:
+            average_score_of_every_100_episodes.append(np.mean(latest_100_scores))
+            latest_100_scores = []
+            epsilon_every_100_episodes.append(agent.epsilon)
+            learning_rate_every_100_episodes.append(scheduler.get_last_lr()[0])
             if total_reward > best_total_reward:
                 print(f"Improved total reward from {best_total_reward} to {total_reward}")
                 best_total_reward = total_reward
@@ -68,3 +77,25 @@ def train_agent(env, agent, config):
     print("Action Q-values:")
     for i in range(len(q_values)):
         print(f"Action {i}: {q_values[i]}")
+    # draw the average reward per 100 episodes
+    import matplotlib.pyplot as plt
+    plt.plot(average_score_of_every_100_episodes)
+    plt.xlabel("100 Episodes")
+    plt.ylabel("Average Reward")
+    plt.show()
+    # draw the epsilon values and learning rate values together
+    fig, ax1 = plt.subplots()
+    color = 'tab:red'
+    ax1.set_xlabel('100 Episodes')
+    ax1.set_ylabel('Epsilon', color=color)
+    ax1.plot(epsilon_every_100_episodes, color=color)
+    ax1.tick_params(axis='y', labelcolor=color)
+    ax2 = ax1.twinx()
+    color = 'tab:blue'
+    ax2.set_ylabel('Learning Rate', color=color)
+    ax2.plot(learning_rate_every_100_episodes, color=color)
+    ax2.tick_params(axis='y', labelcolor=color)
+    fig.tight_layout()
+    plt.show()
+
+
