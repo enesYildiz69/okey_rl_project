@@ -6,7 +6,7 @@ class OkeyEnvironment:
     def __init__(self):
         self.deck = self.initialize_deck()
         self.state_size = 72  # 3 colors * 8 numbers * 3 states (deck, hand, discarded)
-        self.action_size = 25  # Example action size: 19 possible actions
+        self.action_size = 44  # 20 combination actions + 24 discard actions
         self.valid_combinations = {}
         self.discarded = []
         self.dummy_card = (-1, -1)  # Represent an empty slot
@@ -50,107 +50,114 @@ class OkeyEnvironment:
         valid_actions = []
         self.valid_combinations = {}
 
-        # Check if deck has cards; if not, discard actions shouldn't be allowed
-        if len(self.deck) > 0:
-            for i in range(len(self.hand)):
-                if self.hand[i] != self.dummy_card:
-                    valid_actions.append(i)
-
         # Check for possible same-number combinations
         for action, combination in enumerate([
             (1, 1, 1), (2, 2, 2), (3, 3, 3), (4, 4, 4),
             (5, 5, 5), (6, 6, 6), (7, 7, 7), (8, 8, 8)
-        ], start=5):
-            success, same_color = self.try_combination(*combination, remove=False)
+        ]):
+            success, _ = self.try_combination(*combination, remove=False)
             if success:
                 valid_actions.append(action)
-                self.valid_combinations[action] = (combination, same_color)
+                self.valid_combinations[action] = (combination, True)
 
-        # Check for possible sequential combinations
-        for action, combination in enumerate([
+        # Check for possible same-color sequential combinations
+        for i, combination in enumerate([
             (1, 2, 3), (2, 3, 4), (3, 4, 5), (4, 5, 6),
             (5, 6, 7), (6, 7, 8)
-        ], start=13):  # Sequential combinations start from action 13
+        ]):
             success, same_color = self.try_combination(*combination, remove=False)
             if success:
                 if same_color:
-                    valid_actions.append(action)
-                    self.valid_combinations[action] = (combination, same_color)
+                    valid_actions.append(8 + i)  # Action numbers 8-13 for same-color sequential combinations
+                    self.valid_combinations[8 + i] = (combination, True)
                 else:
-                    valid_actions.append(action + 6)  # Different color sequential actions start at 19
-                    self.valid_combinations[action + 6] = (combination, same_color)
+                    valid_actions.append(14 + i)  # Action numbers 14-19 for different-color sequential combinations
+                    self.valid_combinations[14 + i] = (combination, False)
+
+        # Discard actions for specific cards in hand
+        for card in self.hand:
+            if card != self.dummy_card:
+                index = self.get_card_action_index(card)
+                valid_actions.append(index)
 
         return valid_actions
 
+    def get_card_action_index(self, card):
+        color, number = card
+        return 20 + (color * 8) + (number - 1)  # Action numbers 20-43 for discarding cards
+
+
+
     def step(self, action):
         reward = 0
-        if action in self.get_valid_actions():
-            hand_before_action = self.hand.copy()
-            if action >= 0 and action <= 4:  # Discard action
-                discarded_card = self.hand[action]
-                self.hand[action] = self.dummy_card
-                self.discarded.append(discarded_card)
-                if len(self.deck) > 0:
+        hand_before_action = self.hand.copy()
+        if action in range(0, 8):  # Same-number combination
+            combination = self.valid_combinations[action][0]
+            self.remove_combination_cards_from_hand(*combination)
+            reward = self.calculate_reward_for_action(action, same_color=True)
+            # Replace the removed cards if the deck still has enough cards
+            num_cards_to_draw = min(3, len(self.deck))
+            for i in range(len(self.hand)):
+                if self.hand[i] == self.dummy_card and num_cards_to_draw > 0:
                     new_card = self.deck.pop()
-                    self.hand[action] = new_card
-                reward = 0
+                    self.hand[i] = new_card
+                    num_cards_to_draw -= 1
+        elif action in range(8, 14):  # Same-color sequential combination
+            combination = self.valid_combinations[action][0]
+            self.remove_combination_cards_from_hand(*combination)
+            reward = self.calculate_reward_for_action(action, same_color=True)
+            # Replace the removed cards if the deck still has enough cards
+            num_cards_to_draw = min(3, len(self.deck))
+            for i in range(len(self.hand)):
+                if self.hand[i] == self.dummy_card and num_cards_to_draw > 0:
+                    new_card = self.deck.pop()
+                    self.hand[i] = new_card
+                    num_cards_to_draw -= 1
             
-            elif action >= 5 and action <= 12:  # Same-number combination
-                combination, same_color = self.valid_combinations[action]
-                self.remove_combination_cards_from_hand(*combination)
-                reward = self.calculate_reward_for_action(action, same_color)
-                
-                # Replace the removed cards if the deck still has enough cards
-                num_cards_to_draw = min(3, len(self.deck))
-                for i in range(len(self.hand)):
-                    if self.hand[i] == self.dummy_card and num_cards_to_draw > 0:
-                        new_card = self.deck.pop()
-                        self.hand[i] = new_card
-                        num_cards_to_draw -= 1
+        elif action in range(14, 20):  # Different-color sequential combination
+            combination = self.valid_combinations[action][0]
+            self.remove_combination_cards_from_hand(*combination)
+            reward = self.calculate_reward_for_action(action, same_color=False)
+            # Replace the removed cards if the deck still has enough cards
+            num_cards_to_draw = min(3, len(self.deck))
+            for i in range(len(self.hand)):
+                if self.hand[i] == self.dummy_card and num_cards_to_draw > 0:
+                    new_card = self.deck.pop()
+                    self.hand[i] = new_card
+                    num_cards_to_draw -= 1
             
-            elif action >= 13 and action <= 18:  # Same-color sequential combination
-                combination, same_color = self.valid_combinations[action]
-                self.remove_combination_cards_from_hand(*combination)
-                reward = self.calculate_reward_for_action(action, same_color)
-                
-                # Replace the removed cards if the deck still has enough cards
-                num_cards_to_draw = min(3, len(self.deck))
-                for i in range(len(self.hand)):
-                    if self.hand[i] == self.dummy_card and num_cards_to_draw > 0:
-                        new_card = self.deck.pop()
-                        self.hand[i] = new_card
-                        num_cards_to_draw -= 1
-            
-            elif action >= 19 and action <= 24:  # Different-color sequential combination
-                combination, same_color = self.valid_combinations[action]
-                self.remove_combination_cards_from_hand(*combination)
-                reward = self.calculate_reward_for_action(action, same_color)
-                
-                # Replace the removed cards if the deck still has enough cards
-                num_cards_to_draw = min(3, len(self.deck))
-                for i in range(len(self.hand)):
-                    if self.hand[i] == self.dummy_card and num_cards_to_draw > 0:
-                        new_card = self.deck.pop()
-                        self.hand[i] = new_card
-                        num_cards_to_draw -= 1
-
-            done = self.check_if_done()
-        else:
-            done = True  # Invalid action should never happen now
-
-        # print(f"Action taken: {action}, Hand before action: {hand_before_action}, Hand after action: {self.hand}, Reward: {reward}")
+        elif action in range(20, 44):  # Discard action based on specific card
+            card_to_discard = self.get_card_from_action_index(action)
+            index = self.hand.index(card_to_discard)
+            self.hand[index] = self.dummy_card
+            self.discarded.append(card_to_discard)
+            if len(self.deck) > 0:
+                new_card = self.deck.pop()
+                self.hand[index] = new_card
+            reward = 0  # No points for discarding
+        # print(f"Reward: {reward}, Action: {action}, Hand Before: {hand_before_action}, Hand After: {self.hand}")
+        done = self.check_if_done()
         new_state = self.get_state()
         return new_state, reward, done
 
+    def get_card_from_action_index(self, action):
+        index = action - 20
+        color = index // 8
+        number = (index % 8) + 1
+        return (color, number)
+
+
+
     def calculate_reward_for_action(self, action, same_color):
-        if action >= 5 and action <= 12:  # For same-number combinations
-            return 20 + (action - 5) * 10
-        elif action >= 13 and action <= 18:  # For same-color sequential combinations
-            return 50 + (action - 13) * 10
-        elif action >= 19 and action <= 24:  # For different-color sequential combinations
-            return 10 + (action - 19) * 10
+        if action in range(0, 8):  # For same-number combinations
+            return 20 + action * 10
+        elif action in range(8, 14):  # For same-color sequential combinations
+            return 50 + (action - 8) * 10
+        elif action in range(14, 20):  # For different-color sequential combinations
+            return 10 + (action - 14) * 10
         else:
-            return 0
+            return 0  # No points for discard actions
+
 
     def try_combination(self, n1, n2, n3, remove=False):
         hand_numbers = [card[1] for card in self.hand if card != self.dummy_card]
@@ -164,6 +171,7 @@ class OkeyEnvironment:
             if hand_count[num] < count:
                 return False, False  # Not enough of a specific number in the hand
 
+        # Check for color match or mismatches
         if n1 != n2 or n2 != n3:
             indices = []
             for num in required_numbers:
@@ -172,7 +180,12 @@ class OkeyEnvironment:
                         indices.append(i)
                         break
 
-            if len(set([self.hand[i][0] for i in indices])) != 1:
+            colors = [self.hand[i][0] for i in indices]
+            if len(set(colors)) == 1:  # All cards are the same color
+                if remove:
+                    self.remove_combination_cards_from_hand(n1, n2, n3)
+                return True, True
+            else:  # Different colors
                 if remove:
                     self.remove_combination_cards_from_hand(n1, n2, n3)
                 return True, False
@@ -183,7 +196,6 @@ class OkeyEnvironment:
 
     def remove_combination_cards_from_hand(self, n1, n2, n3):
         to_remove = [n1, n2, n3]
-
         for num in to_remove:
             for i, card in enumerate(self.hand):
                 if card[1] == num:
