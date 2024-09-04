@@ -42,8 +42,5 @@ class DQNAgent:
             loss.backward()
             optimizer.step()
 
-        if self.epsilon > self.epsilon_min:
-            self.epsilon *= self.epsilon_decay
-
     def update_target_network(self):
         self.target_model.load_state_dict(self.model.state_dict())
