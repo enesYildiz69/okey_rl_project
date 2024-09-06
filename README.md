@@ -35,9 +35,15 @@ This project implements a Reinforcement Learning (RL) agent using Deep Q-Network
 4. The trained model will be saved to `dqn_model.pth` after training is complete.
 
 ## How to Run the Algorithm
-1. g++ okey_game_algorithm.cpp -o okey_game -std=c++11
+1. Compile the file
+   ```bash
+    g++ okey_game_algorithm.cpp -o okey_game -std=c++11
+   ```
 
-2. ./okey_game
+3. Run
+   ```bash
+   ./okey_game
+   ```
 
 ## Future Work
 - Improve the game logic for more complex strategies.
