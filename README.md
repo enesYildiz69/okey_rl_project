@@ -13,8 +13,9 @@ This project implements a Reinforcement Learning (RL) agent using Deep Q-Network
 - `utils.py`: Utility functions for preprocessing and other tasks.
 - `config.py`: Configuration file with hyperparameters and settings.
 - `play.py`: File to play with the trained model.
+- `okey_algorithm_cpp/`: It is the folder for an independent algorithm which also plays the game.
 
-## How to Run
+## How to Run DQN model training
 1. Clone the repository:
     ```bash
     git clone https://github.com/enesYildiz69/okey_rl_project.git
@@ -33,7 +34,13 @@ This project implements a Reinforcement Learning (RL) agent using Deep Q-Network
 
 4. The trained model will be saved to `dqn_model.pth` after training is complete.
 
+## How to Run the Algorithm
+1. g++ okey_game_algorithm.cpp -o okey_game -std=c++11
+
+2. ./okey_game
+
 ## Future Work
 - Improve the game logic for more complex strategies.
 - Tune hyperparameters for better performance.
 - Implement a more advanced RL algorithm such as Double DQN or Dueling DQN.
+
